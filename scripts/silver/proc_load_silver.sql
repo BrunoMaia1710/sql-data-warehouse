@@ -3,7 +3,7 @@
 Procedure: silver.load_silver (PostgreSQL)
 =============================================================
 Lê a Bronze, limpa os dados e grava na Silver.
-Por enquanto: crm_cust_info. As outras tabelas serão adicionadas.
+Tabelas já tratadas: crm_cust_info, crm_prd_info.
 
 Limpezas em crm_cust_info:
   1. Remove linhas sem cst_id.
@@ -12,6 +12,15 @@ Limpezas em crm_cust_info:
   3. TRIM: tira espaços extras dos nomes.
   4. Padroniza códigos: S/M -> Single/Married, F/M -> Female/Male,
      qualquer outro valor -> 'n/a'.
+
+Limpezas em crm_prd_info:
+  1. Separa prd_key em cat_id (categoria, com '_' para casar com o ERP)
+     e prd_key (código do produto, para casar com as vendas).
+  2. Custo nulo -> 0.
+  3. Padroniza linha: M/R/S/T -> Mountain/Road/Other Sales/Touring.
+  4. Converte datas para DATE.
+  5. Recalcula a data de fim: dia anterior ao início da próxima
+     versão do mesmo produto (LEAD). Versão atual fica com fim NULL.
 
 Como usar:
     CALL silver.load_silver();
@@ -64,6 +73,37 @@ BEGIN
     WHERE flag_ultimo = 1;
 
     RAISE NOTICE 'crm_cust_info carregada em % s',
+        ROUND(EXTRACT(EPOCH FROM clock_timestamp() - v_inicio)::numeric, 2);
+
+    -- ------------------------ crm_prd_info -------------------------
+    v_inicio := clock_timestamp();
+    TRUNCATE TABLE silver.crm_prd_info;
+
+    INSERT INTO silver.crm_prd_info (
+        prd_id, cat_id, prd_key, prd_nm, prd_cost,
+        prd_line, prd_start_dt, prd_end_dt
+    )
+    SELECT
+        prd_id,
+        REPLACE(SUBSTRING(prd_key, 1, 5), '-', '_') AS cat_id,
+        SUBSTRING(prd_key, 7)                       AS prd_key,
+        prd_nm,
+        COALESCE(prd_cost, 0)                       AS prd_cost,
+        CASE UPPER(TRIM(prd_line))
+            WHEN 'M' THEN 'Mountain'
+            WHEN 'R' THEN 'Road'
+            WHEN 'S' THEN 'Other Sales'
+            WHEN 'T' THEN 'Touring'
+            ELSE 'n/a'
+        END                                         AS prd_line,
+        prd_start_dt::DATE                          AS prd_start_dt,
+        (LEAD(prd_start_dt) OVER (
+            PARTITION BY prd_key
+            ORDER BY prd_start_dt
+        ) - INTERVAL '1 day')::DATE                 AS prd_end_dt
+    FROM bronze.crm_prd_info;
+
+    RAISE NOTICE 'crm_prd_info carregada em % s',
         ROUND(EXTRACT(EPOCH FROM clock_timestamp() - v_inicio)::numeric, 2);
 
     RAISE NOTICE '================================================';
