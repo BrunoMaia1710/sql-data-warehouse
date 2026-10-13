@@ -1,18 +1,28 @@
-# \# Data Warehouse em SQL — Arquitetura Medalhão
+\# Data Warehouse em SQL - Arquitetura Medalhão
 
-# 
 
-# Projeto de capacitação do NDados, adaptado do vídeo do Data With Baraa para PostgreSQL.
 
-# 
+Projeto de capacitação do NDados, adaptado do vídeo do Data With Baraa para PostgreSQL.
 
-# \*\*Fontes de dados:\*\* arquivos CSV de dois sistemas — CRM (clientes, produtos, vendas) e ERP (dados extras de clientes, localização e categorias).
 
-# 
 
-# \- \*\*Bronze:\*\* carrega os CSVs como vieram, sem transformação (TRUNCATE + COPY). ✅
+\*\*Fontes de dados:\*\* arquivos CSV de dois sistemas: CRM (clientes, produtos e vendas) e ERP (nascimento, gênero e país dos clientes, e categorias dos produtos).
 
-# \- \*\*Silver:\*\* limpeza e padronização dos dados. (em andamento)
 
-# \- \*\*Gold:\*\* modelo estrela em views, pronto para análise. (em andamento)
+
+\- \*\*Bronze:\*\* carrega os CSVs como vieram, sem transformação (TRUNCATE + COPY). `CALL bronze.load\_bronze();`
+
+\- \*\*Silver:\*\* limpa e padroniza os dados: remove duplicados, corrige datas e valores de venda, padroniza códigos e países. `CALL silver.load\_silver();`
+
+\- \*\*Gold:\*\* modelo estrela em views, pronto para análise.
+
+
+
+\*\*Tabelas da Gold:\*\*
+
+\- `gold.dim\_customers`: clientes, juntando CRM e ERP
+
+\- `gold.dim\_products`: produtos atuais com categoria
+
+\- `gold.fact\_sales`: vendas ligadas às dimensões
 
